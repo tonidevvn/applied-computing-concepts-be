@@ -6,5 +6,5 @@ import java.util.Set;
 
 public interface ProductService {
     Set<ProductData> getProducts();
-    Set<ProductData> getProductsByKeyword(String keyword);
+    Set<ProductData> getProductsByKeyword(String keyword) throws Exception;
 }

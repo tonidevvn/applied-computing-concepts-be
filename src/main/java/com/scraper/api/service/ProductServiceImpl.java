@@ -19,7 +19,6 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -51,22 +50,22 @@ public class ProductServiceImpl implements ProductService {
     public Set<ProductData> getProducts() {
         // init web driver
         webDriverInit();
-        String filePath = "./data/products.csv";
+        String filePath = "./data/products_zehrs.csv";
 
         Set<ProductData> responseProducts = new HashSet<>();
-            List<ProductData> products = new ArrayList<>();
             try (CSVReader csvReader = new CSVReader(new FileReader(Paths.get(filePath).toFile()))) {
                 List<String[]> records = csvReader.readAll();
                 records.remove(0); // Remove header row
 
                 for (String[] record : records) {
                     ProductData responseProduct = new ProductData();
-                    if (record.length == 6) {
+                    if (record.length == 7) {
                         responseProduct.setName(record[1]);
                         responseProduct.setBrand(record[2]);
                         responseProduct.setPrice(record[3]);
                         responseProduct.setImage(record[4]);
                         responseProduct.setUrl(record[5]);
+                        responseProduct.setDescription(record[6]);
                         if (responseProduct.getName() != null)
                             responseProducts.add(responseProduct);
                     }
@@ -79,7 +78,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public Set<ProductData> getProductsByKeyword(String keyword) {
+    public Set<ProductData> getProductsByKeyword(String keyword) throws Exception {
         // init web driver
         webDriverInit();
 
@@ -88,9 +87,8 @@ public class ProductServiceImpl implements ProductService {
         for (String url: urls) {
             String fullUrl = url + keyword;
             driver.get(fullUrl);
-            WebDriverHelper.waitInSeconds(10);
-
             if (url.contains("zehrs")) {
+                WebDriverHelper.waitUntilExpectedPageLoaded(fullUrl, By.className("responsive-image--product-tile-image"));
                 extractDataFromZehrs(responseProducts);
             }
         }
@@ -105,9 +103,9 @@ public class ProductServiceImpl implements ProductService {
             // Find product elements
             MainPage mainPage = new MainPage(driver);
 
-            String csvFile = "data/products.csv";
+            String csvFile = "data/products_zehrs.csv";
             CSVWriter writer = new CSVWriter(new FileWriter(csvFile));
-            String[] header = {"No", "Product Name", "Brand", "Price", "Image URL", "Product URL"};
+            String[] header = {"No", "Product Name", "Brand", "Price", "Image URL", "Product URL", "Product Details"};
             writer.writeNext(header);
 
             int count = 1;
@@ -115,11 +113,13 @@ public class ProductServiceImpl implements ProductService {
             List<WebElement> searchProducts = mainPage.searchProducts;
             WebDriverHelper.waitInSeconds(10);
             for (WebElement product: searchProducts) {
-                ProductData responseProduct = new ProductData();
 
+                ProductData responseProduct = new ProductData();
                 try {
                     WebElement we = product.findElement(By.cssSelector("span.product-name__item--name"));
                     if (we != null && !StringUtils.isEmpty(we.getText()) ) {
+                        // trick to load full element
+                        WebDriverHelper.moveToElement(we);
                         responseProduct.setName(we.getText());
                     }
 
@@ -140,35 +140,55 @@ public class ProductServiceImpl implements ProductService {
                     assert we != null;
                     responseProduct.setPrice(we.getText());
 
-                    we = product.findElement(By.className("responsive-image--product-tile-image"));
-                    if (we != null && !StringUtils.isEmpty(we.getAttribute("src"))) {
+                    we = WebDriverHelper.getRelatedElementIfExist(product, By.className("responsive-image--product-tile-image"));
+                    assert we != null;
+                    WebDriverHelper.waitUntilElementPresent(we);
+                    if (!StringUtils.isEmpty(we.getAttribute("src"))) {
                         responseProduct.setImage(we.getAttribute("src"));
                     }
 
-                    we = product.findElement(By.className("product-tile__details__info__name__link"));
-                    if (we != null && !StringUtils.isEmpty(we.getAttribute("href"))) {
-                        responseProduct.setUrl(we.getAttribute("href"));
+                    we = WebDriverHelper.getRelatedElementIfExist(product, By.className("product-tile__details__info__name__link"));
+                    assert we != null;
+                    WebDriverHelper.waitUntilElementPresent(we);
+                    String productLink = we.getAttribute("href");
+                    if (!StringUtils.isEmpty(productLink)) {
+                        responseProduct.setUrl(productLink);
                     }
                 } catch (Exception ex) {
                     ex.printStackTrace();
                 }
 
                 if (responseProduct.getName() != null) {
-                    // && responseProduct.getBrand() != null && responseProduct.getPrice() != null && responseProduct.getImage() != null && responseProduct.getUrl() != null) {
-                    String[] data = { String.valueOf(count++), responseProduct.getName(), responseProduct.getBrand(), responseProduct.getPrice(), responseProduct.getImage(), responseProduct.getUrl() };
-                    writer.writeNext(data);
-                    if (responseProduct.getName() != null) responseProducts.add(responseProduct);
+                    responseProducts.add(responseProduct);
                     limitCheck++;
-                    if (limitCheck > 10) {
+                    if (limitCheck > 30) {
                         break;
                     }
                 }
-
             }
+
+            for (ProductData product: responseProducts) {
+                if (product.getUrl() != null) {
+                    // get product details
+                    driver.get(product.getUrl());
+                    WebDriverHelper.waitUntilExpectedPageLoaded(product.getUrl(), By.className("product-description-text__text"));
+                    WebElement descriptionDiv = driver.findElement(By.cssSelector("div.product-description-text__text"));
+                    assert descriptionDiv != null;
+                    product.setDescription(descriptionDiv.getText());
+                    WebDriverHelper.waitInSeconds(10);
+
+                    // && responseProduct.getBrand() != null && responseProduct.getPrice() != null && responseProduct.getImage() != null && responseProduct.getUrl() != null) {
+                    String[] data = { String.valueOf(count++), product.getName(), product.getBrand(), product.getPrice(), product.getImage(), product.getUrl(), product.getDescription() };
+                    writer.writeNext(data);
+                }
+            }
+
             // Close CSV writer and browser
             writer.close();
         } catch (IOException ex) {
             ex.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }

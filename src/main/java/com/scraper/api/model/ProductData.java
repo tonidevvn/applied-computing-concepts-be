@@ -8,6 +8,7 @@ public class ProductData {
     private String price;
     private String image;
     private String url;
+    private String description;
 
     @Override
     public String toString() {
@@ -17,6 +18,7 @@ public class ProductData {
                 ", price='" + price + '\'' +
                 ", url='" + url + '\'' +
                 ", image='" + image + '\'' +
+                ", description='" + description + '\'' +
                 '}';
     }
 }

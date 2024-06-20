@@ -93,7 +93,6 @@ public class MainPage {
     @FindBys(@FindBy(css = "div.chakra-linkbox"))
     public List<WebElement> products;
 
-
     /**
      * List of web elements representing search products
      */

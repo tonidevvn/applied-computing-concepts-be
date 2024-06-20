@@ -45,9 +45,18 @@ public class ScraperConfig {
         return new ChromeDriver(options);
     }
 
-    private WebDriver setupWebDriverAuto() {
+    private WebDriver setupWebDriverAuto(boolean headlessMode) {
+        ChromeOptions options = new ChromeOptions();
+        // Fix the issue https://github.com/SeleniumHQ/selenium/issues/11750
+        options.addArguments("--remote-allow-origins=*");
+        options.addArguments("--disable-extensions");
+        options.addArguments("--disable-gpu");
+        options.addArguments("--no-sandbox");
+        //options.setPageLoadStrategy(PageLoadStrategy.EAGER); // implies that the WebDriver will wait for the entire page to load before moving on to the next step in the code.
+        if(headlessMode) options.addArguments("--headless=new");
         WebDriverManager.chromedriver().setup();
-        return WebDriverManager.chromedriver().create();
+
+        return WebDriverManager.chromedriver().capabilities(options).create();
     }
 
     private WebDriver setupWebDriverDocker() {
@@ -58,20 +67,20 @@ public class ScraperConfig {
     }
 
     public WebDriver setupWebDriver(boolean headlessMode)  {
-        int opt = 3;
+        int opt = 2;
         WebDriver driver = null;
         switch (opt) {
             case 1:
                 driver = setupWebDriverInHost(headlessMode);
                 break;
             case 2:
-                driver = setupWebDriverAuto();
+                driver = setupWebDriverAuto(headlessMode);
                 break;
             case 3:
                 driver = setupWebDriverDocker();
                 break;
             default:
-                driver = setupWebDriverAuto();
+                driver = setupWebDriverAuto(headlessMode);
                 break;
         }
         return driver;

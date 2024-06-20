@@ -1,6 +1,7 @@
 package com.scraper.api.untils;
 
 import org.openqa.selenium.*;
+import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Wait;
 import org.openqa.selenium.support.ui.WebDriverWait;
@@ -11,6 +12,9 @@ import java.util.List;
 public class WebDriverHelper {
 
     private static WebDriver driver;
+
+    // Actions instance for performing complex user interactions
+    private static Actions actions;
 
     // JavascriptExecutor instance for executing JavaScript commands
     private static JavascriptExecutor js;
@@ -23,6 +27,7 @@ public class WebDriverHelper {
     public static void init(WebDriver webDriver) {
         driver = webDriver;
         js = (JavascriptExecutor) driver;
+        actions = new Actions(driver);
     }
     public static boolean isElementPresent(By locator) {
         return driver.findElements(locator).size() > 0;
@@ -46,7 +51,17 @@ public class WebDriverHelper {
         }
     }
 
-    public void waitUntilExpectedPageLoaded(String expectedUrl, By elementLocator) throws Exception {
+    public static void moveToElement(WebElement element) {
+        actions.moveToElement(element).perform();
+        waitInSeconds(5);
+    }
+
+    public static void waitUntilElementPresent(WebElement element) {
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+        wait.until(ExpectedConditions.visibilityOf(element));
+    }
+
+    public static void waitUntilExpectedPageLoaded(String expectedUrl, By elementLocator) throws Exception {
         Wait<WebDriver> wait = new WebDriverWait(driver, Duration.ofSeconds(30));
         try {
             wait.until(ExpectedConditions.urlContains(expectedUrl));
